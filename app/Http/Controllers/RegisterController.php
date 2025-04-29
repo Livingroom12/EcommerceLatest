@@ -8,6 +8,7 @@ use App\Mail\SendOtp;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Cache;
+use App\Mail\ExampleMail;
 
 
 class RegisterController extends Controller
@@ -111,4 +112,48 @@ class RegisterController extends Controller
             ]
         ], 200);
     }
+
+    public function forgetPassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|string|email',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $validator->errors()
+            ], 400);
+        }
+
+        $email = $request->input('email');
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User does not exist',
+                'result' => (object) []
+            ], 404);
+        }
+
+        // Generate OTP and update user record
+        $otp = rand(1000, 9999);
+        $user->otp = $otp;
+        $user->save();
+
+        // Send OTP via email
+        $emailContent = new ExampleMail($otp);
+        Mail::to($email)->send($emailContent);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'OTP Created successfully',
+            'result' => [
+                'otp' => $otp,
+            ],
+        ]);
+    }
+
 }
