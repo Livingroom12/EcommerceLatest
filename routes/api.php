@@ -25,7 +25,7 @@ Route::post('/register',[RegisterController::class,'register']);
 Route::post('/verify-otp',[RegisterController::class,'verifyOtp']);
 
 Route::post('/forget-password', [RegisterController::class,'forgetPassword']);
-Route::post('verify-otp', [RegisterController::class, 'verifyOTP']);
 Route::post('resetVerify-otp', [RegisterController::class, 'resetVerifyOTP']);
-
+Route::post('resetpassword', [RegisterController::class, 'resetPassword']);
+Route::post('complete_Profile', [RegisterController::class, 'completeProfile']);
 

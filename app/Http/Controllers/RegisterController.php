@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Cache;
 use App\Mail\ExampleMail;
 
+use Illuminate\Support\Str;
 
 class RegisterController extends Controller
 {
@@ -155,5 +156,122 @@ class RegisterController extends Controller
             ],
         ]);
     }
+
+    public function resetVerifyOTP(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+            'otp' => 'required|numeric',
+        ]);
+
+        $email = $request->input('email');
+        $otp = $request->input('otp');
+
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found',
+                'result' => (object) []
+            ], 404);
+        }
+
+        if ($user->otp != $otp) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid OTP',
+                'result' => (object) []
+            ], 400);
+        }
+
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'OTP verified successfully',
+            'result' => [
+                'email' => $email,
+            ],
+        ]);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|exists:users,email',
+            'password' => 'required'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'message' => 'Validation error', 'errors' => $validator->errors()], 400);
+        }
+
+        $user = User::where('email', $request->input('email'))->first();
+
+        $user->update([
+            'password' => $request->input('password')
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password Updated Successfully.'
+        ], 200);
+    }
+
+
+
+    public function completeProfile(Request $request)
+    {
+
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'phone' => 'nullable|string|max:20',
+            'gender' => 'nullable|in:male,female,other',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+
+        $user = auth()->user();
+
+        if ($request->hasFile('image')) {
+            // Delete old image if exists
+            if ($user->image && file_exists(public_path('storage/' . $user->image))) {
+                unlink(public_path('storage/' . $user->image));
+            }
+
+            // Create a unique file name
+            $image = $request->file('image');
+            $imageName = Str::uuid() . '.' . $image->getClientOriginalExtension();
+
+            // Move the file to public/storage/profile_images
+            $destinationPath = public_path('storage/profile_images');
+            if (!file_exists($destinationPath)) {
+                mkdir($destinationPath, 0755, true);
+            }
+
+            $image->move($destinationPath, $imageName);
+
+            // Save path relative to storage
+            $user->image = 'profile_images/' . $imageName;
+        }
+
+        // Update other fields
+        $user->name = $request->name;
+        $user->phone = $request->phone;
+        $user->gender = $request->gender;
+        $user->save();
+
+        return response()->json([
+            'message' => 'Profile updated successfully',
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'phone' => $user->phone,
+                'gender' => $user->gender,
+                'image_url' => $user->image ? asset('storage/' . $user->image) : null,
+            ],
+        ]);
+    }
+
 
 }
